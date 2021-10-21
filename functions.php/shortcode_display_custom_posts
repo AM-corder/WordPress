@@ -1,0 +1,108 @@
+/*
+ * 概要　　　：ショートコード「display_custom_posts」
+ * 説明　　　：指定されたカスタム投稿タイプをタームごとに一覧で出力するショートコード
+ *           ※「カスタム投稿タイプ：news」の場合はすべてのタームを表示
+ *           ※「カスタム投稿タイプ：menu」の場合は「カスタムフィールド：price」も表示
+ * パラメータ： 1. カスタム投稿タイプ  2. ターム(カテゴリ項目)のスラッグ名
+ * ショートコード利用例 ： [display_custom_posts post_type="news"]
+ * 　　　　　　　　　　 ： [display_custom_posts post_type="menu" cat="ramen"]
+ */
+
+if ( ! function_exists( 'display_custom_posts' ) ){
+  function display_custom_posts($atts) {
+
+// 引数の初期設定
+extract(
+    shortcode_atts(
+      array(
+        'post_type' => '',
+        'taxonomy' => '',
+        'cat' => ''
+
+      ),
+      $atts
+    )
+  );
+
+     // 「お知らせ」の場合、タームは見ずに投稿を取得
+     if($post_type == 'news'){
+
+         $posts = get_posts( array('post_type'   => $post_type
+                                  ,'post_status' => 'publish'
+                                  ,'posts_per_page' => 3
+                                  ,'orderby'=> 'desc') );
+         }
+
+     // 「お知らせ」以外の場合、指定されたタームの投稿を取得
+     if ($post_type == 'menu'){
+
+         $posts = get_posts( array('post_type'   => $post_type
+                                  ,'tax_query'   => array(array('taxonomy'=> 'menu-cat'
+			                                       ,'field'		=> 'slug'
+		                                               ,'terms'	        => $cat
+                                                     ))
+                                  ,'post_status' => 'publish'
+                                  ,'posts_per_page' => 3
+                                  ,'orderby'=> 'desc') );
+     }
+
+      $html='';
+      $post_cnt = 0;
+
+      if($posts){
+        $html ='<ul class="cp-list mx-md-5">';
+          foreach( $posts as $p ){
+
+             $post_cnt++;
+
+              setup_postdata($p);
+              $thumbnail_image    = get_the_post_thumbnail( $p->ID, "large" );
+ 
+
+              $html .= '<li class ="my-3 pb-5 row" data-no= "post-'.$post_cnt.'">';
+
+              // タブレット以上の場合、１投稿ごとに画像とテキスト左右を入れ替えて表示
+              if($post_cnt % 2 == 0){
+
+                        $html .= '<div class = "cp-image col-md-6 order-md-2 position-relative text-center my-3">
+                             ' 		. $thumbnail_image . '
+                               		<div class="position-absolute w-auto h-auto "></div>
+                                  </div>
+                                 <div class = "cp-txt col-md-6 order-md-1">';
+
+             } else {
+                        $html .= '<div class = "cp-image col-md-6 position-relative text-center my-3">
+                             ' 		. $thumbnail_image . '
+                               		<div class="position-absolute w-auto h-auto "></div>
+                                  </div>
+                                 <div class = "cp-txt col-md-6">';
+             }
+
+
+              // お知らせの場合は日付表示
+              if($post_type == 'news'){
+
+                   $time               = get_post_time( 'Y年m月d日', false, $p->ID );
+                   $html .= '<span class="fs-smaller time">' . $time . '</span><br>';
+               }
+
+              $html .=  '<h3 class="menu-tit">' . get_the_title( $p->ID ) . '</h3><br>
+                        <p>' .$p->post_content.'</p>';
+
+              // メニューの場合は価格表示
+              if($post_type == 'menu'){
+                   $price = get_post_meta($p->ID, 'price', true);
+                   $html .= '<span class="price">' . number_format($price) . '円 (税込)</span></div>';
+               }
+                   $html .= '</li>';
+          }
+          $html .= '</ul>';
+      }
+     return $html;
+
+  }
+  wp_reset_query();
+}
+
+add_shortcode( 'display_custom_posts', 'display_custom_posts' );
+
